@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+instance/
+.DS_Store
+.env
+weight_env/

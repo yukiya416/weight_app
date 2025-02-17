@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}ユーザー一覧{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">ユーザー管理</h1>
+            <p class="text-muted small mb-0">体重記録データの管理と分析</p>
+        </div>
+        <a href="{{ url_for('weight.import_data') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>データインポート
+        </a>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">総ユーザー数</h6>
+                    <h2 class="mb-0">{{ users|length }}<small class="text-muted ms-1">名</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">男性ユーザー</h6>
+                    <h2 class="mb-0">{{ users|selectattr('gender', 'equalto', 'male')|list|length }}<small class="text-muted ms-1">名</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">女性ユーザー</h6>
+                    <h2 class="mb-0">{{ users|selectattr('gender', 'equalto', 'female')|list|length }}<small class="text-muted ms-1">名</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">平均記録数</h6>
+                    <h2 class="mb-0">
+                        {% set total_records = namespace(value=0) %}
+                        {% for user in users %}
+                            {% set total_records.value = total_records.value + user.weight_records|length %}
+                        {% endfor %}
+                        {{ "%.1f"|format(total_records.value / users|length) if users else 0 }}<small class="text-muted ms-1">件</small>
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ユーザーリスト -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h2 class="h5 mb-0">ユーザー一覧</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ユーザー名</th>
+                            <th>性別</th>
+                            <th>身長</th>
+                            <th>生年月日</th>
+                            <th>年齢</th>
+                            <th>記録数</th>
+                            <th>最終更新日</th>
+                            <th class="text-end">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ user.username }}</div>
+                            </td>
+                            <td>
+                                <span class="badge {{ 'bg-info' if user.gender == 'male' else 'bg-danger' }}">
+                                    {{ '男性' if user.gender == 'male' else '女性' }}
+                                </span>
+                            </td>
+                            <td>{{ user.height }}cm</td>
+                            <td>{{ user.birth_date.strftime('%Y年%m月%d日') if user.birth_date else '-' }}</td>
+                            <td>
+                                {% if user.birth_date %}
+                                    {% set age = ((today - user.birth_date).days / 365.25)|int %}
+                                    {{ age }}歳
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ user.weight_records|length }}件</td>
+                            <td>
+                                {% if user.weight_records %}
+                                    {% set latest_record = user.weight_records|sort(attribute='created_at')|last %}
+                                    {{ latest_record.created_at.strftime('%Y年%m月%d日') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#recordModal"
+                                            data-user-id="{{ user.id }}"
+                                            data-username="{{ user.username }}"
+                                            data-height="{{ user.height }}">
+                                        <i class="fas fa-plus-circle me-1"></i>記録追加
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#detailModal"
+                                            data-user-id="{{ user.id }}"
+                                            data-username="{{ user.username }}">
+                                        <i class="fas fa-table me-1"></i>記録一覧
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 記録追加モーダル -->
+<div class="modal fade" id="recordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">記録追加</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="recordForm">
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="recordUserId">
+                    <p class="mb-3" id="recordUsername"></p>
+                    
+                    <div class="row g-3">
+                        <!-- 日付選択 -->
+                        <div class="col-md-4">
+                            <label class="form-label">年</label>
+                            <select name="year" class="form-select" required>
+                                {% for year in range(current_year-1, current_year+2) %}
+                                    <option value="{{ year }}" {% if year == today.year %}selected{% endif %}>
+                                        {{ year }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">月</label>
+                            <select name="month" class="form-select" required>
+                                {% for month in range(1, 13) %}
+                                    <option value="{{ month }}" {% if month == today.month %}selected{% endif %}>
+                                        {{ month }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">日</label>
+                            <select name="day" class="form-select" required>
+                                {% for day in range(1, 32) %}
+                                    <option value="{{ day }}" {% if day == today.day %}selected{% endif %}>
+                                        {{ day }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 測定値入力 -->
+                        <div class="col-md-6">
+                            <label class="form-label">体重 (kg)</label>
+                            <input type="number" name="weight" class="form-control" step="0.1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">体脂肪率 (%)</label>
+                            <input type="number" name="body_fat" class="form-control" step="0.1">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 記録一覧モーダル -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">記録一覧</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="recordsTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>体重(kg)</th>
+                                <th>体脂肪率(%)</th>
+                                <th>体脂肪量(kg)</th>
+                                <th>除脂肪体重(kg)</th>
+                                <th>BMI</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="text-center">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    
+        // 記録追加モーダルの処理
+        const recordModal = document.getElementById('recordModal');
+        recordModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const userId = button.dataset.userId;
+            const username = button.dataset.username;
+            
+            document.getElementById('recordUserId').value = userId;
+            document.getElementById('recordUsername').textContent = `${username}さんの記録を追加`;
+        });
+    
+        // 記録一覧モーダルの処理
+        const detailModal = document.getElementById('detailModal');
+        detailModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const userId = button.dataset.userId;
+            const username = button.dataset.username;
+            
+            detailModal.querySelector('.modal-title').textContent = `${username}さんの記録一覧`;
+            
+            // 記録データの取得
+            fetch(`/weight/admin/users/${userId}/records/data`, {
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#recordsTable tbody');
+                if (data.records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">記録がありません</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.records.map(record => `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td>${record.weight}</td>
+                        <td>${record.body_fat || '-'}</td>
+                        <td>${record.fat_mass || '-'}</td>
+                        <td>${record.lean_mass || '-'}</td>
+                        <td>${record.bmi}</td>
+                        <td>
+                            <form method="POST" 
+                                  action="/weight/admin/records/${record.id}/delete" 
+                                  class="d-inline"
+                                  onsubmit="return confirm('この記録を削除しますか？');">
+                                <input type="hidden" name="csrf_token" value="${csrfToken}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                `).join('');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const tbody = document.querySelector('#recordsTable tbody');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">データの読み込みに失敗しました</td></tr>';
+            });
+        });
+    
+        // 記録追加フォームの送信処理
+        const recordForm = document.getElementById('recordForm');
+        recordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const userId = document.getElementById('recordUserId').value;
+            const formData = new FormData(this);
+            formData.append('csrf_token', csrfToken);
+            
+            fetch(`/weight/admin/users/${userId}/records/add`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('エラーが発生しました');
+            });
+        });
+    });
+    </script>
+{% endblock %}

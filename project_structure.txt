@@ -1,0 +1,71 @@
+# Project Structure - Updated: 2025-02-15 10:40:25.634600
+
+├── weight_app/
+│   ├── .DS_Store
+│   ├── project_structure.txt
+│   ├── update_structure.py
+│   ├── app.py
+│   ├── user_import.py
+│   ├── weight_management/
+│   │   ├── .DS_Store
+│   │   ├── import_data.py
+│   │   ├── models.py
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── static/
+│   │   │   ├── .DS_Store
+│   │   │   ├── css/
+│   │   │   │   ├── weight.css
+│   │   │   ├── js/
+│   │   │   │   ├── weight.js
+│   │   ├── templates/
+│   │   │   ├── dashboard.html
+│   │   │   ├── admin/
+│   │   │   │   ├── import_data.html
+│   │   │   │   ├── user_detail.html
+│   │   │   │   ├── user_list.html
+│   ├── migrations/
+│   │   ├── script.py.mako
+│   │   ├── env.py
+│   │   ├── alembic.ini
+│   │   ├── README
+│   │   ├── versions/
+│   │   │   ├── 9ff9531017f6_add_gender_and_target_fields.py
+│   ├── admin/
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   ├── shared/
+│   │   ├── .DS_Store
+│   │   ├── __init__.py
+│   │   ├── extensions.py
+│   │   ├── utils.py
+│   │   ├── routes.py
+│   │   ├── models/
+│   │   │   ├── user.py
+│   │   │   ├── .DS_Store
+│   │   ├── static/
+│   │   │   ├── css/
+│   │   │   │   ├── common.css
+│   │   │   ├── js/
+│   │   │   │   ├── common.js
+│   │   ├── templates/
+│   │   │   ├── .DS_Store
+│   │   │   ├── base.html
+│   │   │   ├── admin_login.html
+│   │   │   ├── auth/
+│   │   │   │   ├── register.html
+│   │   │   │   ├── login.html
+│   │   │   ├── components/
+│   │   │   │   ├── footer.html
+│   │   │   │   ├── header.html
+│   │   │   ├── errors/
+│   │   │   │   ├── 500.html
+│   │   │   │   ├── 404.html
+│   ├── reservation_system/
+│   │   ├── .DS_Store
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── templates/
+│   │   │   ├── under_construction.html
+│   ├── instance/
+│   │   ├── app.db

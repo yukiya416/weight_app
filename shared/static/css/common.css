@@ -1,0 +1,30 @@
+/* 全体のレイアウト構造 */
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+/* フッターを下部に固定 */
+.footer {
+    flex-shrink: 0;
+    width: 100%;
+    background-color: #f8f9fa;
+    padding: 1rem 0;
+    margin-top: auto;
+}
+
+/* 共通のフラッシュメッセージスタイル */
+.alert {
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}

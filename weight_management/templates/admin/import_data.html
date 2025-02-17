@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}データインポート{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">データインポート</h1>
+            <p class="text-muted small mb-0">新規ユーザーの作成または既存ユーザーへのデータ追加</p>
+        </div>
+        <a href="{{ url_for('weight.admin_records') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>一覧に戻る
+        </a>
+    </div>
+
+    <!-- メインフォーム -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="POST">
+                {{ form.csrf_token }}
+                
+                <!-- ユーザー情報 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h2 class="h5 mb-0">ユーザー情報</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- ユーザー選択 -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <label class="form-label">
+                                            新規ユーザー名
+                                            <span class="text-danger new-user-required">*</span>
+                                        </label>
+                                        {{ form.username(class="form-control", required=false) }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <label class="form-label">既存のユーザーを選択</label>
+                                        <select name="existing_user_id" class="form-select" required=false>
+                                            <option value="">選択してください</option>
+                                            {% for user in users %}
+                                                <option value="{{ user.id }}" 
+                                                        data-height="{{ user.height }}"
+                                                        data-birth-date="{{ user.birth_date.strftime('%Y-%m-%d') if user.birth_date else '' }}"
+                                                        data-gender="{{ user.gender or '' }}">
+                                                    {{ user.username }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ユーザー詳細情報 -->
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    身長 (cm)
+                                    <span class="text-danger new-user-required">*</span>
+                                </label>
+                                {{ form.height(class="form-control") }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    性別
+                                    <span class="text-danger new-user-required">*</span>
+                                </label>
+                                <select name="gender" class="form-select">
+                                    <option value="">選択してください</option>
+                                    <option value="male">男性</option>
+                                    <option value="female">女性</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    生年月日
+                                    <span class="text-danger new-user-required">*</span>
+                                </label>
+                                <input type="date" name="birth_date" class="form-control" 
+                                       max="{{ today.strftime('%Y-%m-%d') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">
+                                    パスワード
+                                    <span class="text-danger new-user-required">*</span>
+                                    <small class="text-muted existing-user-note d-none">（変更する場合のみ）</small>
+                                </label>
+                                {{ form.password(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 測定データ -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h2 class="h5 mb-0">測定データ <span class="text-danger">*</span></h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading">データ形式</h6>
+                                    <p class="mb-2 small">各行に「YYYY年MM月DD日 体重 体脂肪率」の形式で入力してください。</p>
+                                    <hr>
+                                    <pre class="small mb-0 bg-light p-2 rounded">2024年8月29日 58.6 36
+2024年9月3日 57.6 35.8
+2024年9月18日 56.7 35.9</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{ form.weight_records(rows=10, class="form-control font-monospace", 
+                                             placeholder="ここにデータを入力してください") }}
+                    </div>
+                </div>
+
+                <!-- 送信ボタン -->
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>インポート
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const newUsernameInput = document.querySelector('input[name="username"]');
+    const existingUserSelect = document.querySelector('select[name="existing_user_id"]');
+    const form = document.querySelector('form');
+    const heightInput = document.querySelector('input[name="height"]');
+    const genderSelect = document.querySelector('select[name="gender"]');
+    const birthDateInput = document.querySelector('input[name="birth_date"]');
+    const passwordInput = document.querySelector('input[name="password"]');
+    const requiredMarks = document.querySelectorAll('.new-user-required');
+    const existingUserNote = document.querySelector('.existing-user-note');
+
+    function updateValidation() {
+        const hasNewUsername = newUsernameInput.value.trim() !== '';
+        const hasExistingUser = existingUserSelect.value !== '';
+
+        if (hasNewUsername) {
+            existingUserSelect.value = '';
+            existingUserSelect.disabled = true;
+            heightInput.required = true;
+            genderSelect.required = true;
+            birthDateInput.required = true;
+            passwordInput.required = true;
+            requiredMarks.forEach(mark => mark.classList.remove('d-none'));
+            existingUserNote.classList.add('d-none');
+        } else if (hasExistingUser) {
+            newUsernameInput.value = '';
+            newUsernameInput.disabled = true;
+            heightInput.required = false;
+            genderSelect.required = false;
+            birthDateInput.required = false;
+            passwordInput.required = false;
+            requiredMarks.forEach(mark => mark.classList.add('d-none'));
+            existingUserNote.classList.remove('d-none');
+
+            const selectedOption = existingUserSelect.selectedOptions[0];
+            heightInput.value = selectedOption.dataset.height || '';
+            genderSelect.value = selectedOption.dataset.gender || '';
+            birthDateInput.value = selectedOption.dataset.birthDate || '';
+            passwordInput.value = '';
+        } else {
+            existingUserSelect.disabled = false;
+            newUsernameInput.disabled = false;
+            heightInput.required = false;
+            genderSelect.required = false;
+            birthDateInput.required = false;
+            passwordInput.required = false;
+            requiredMarks.forEach(mark => mark.classList.remove('d-none'));
+            existingUserNote.classList.add('d-none');
+        }
+    }
+
+    form.addEventListener('submit', function(e) {
+        const hasNewUsername = newUsernameInput.value.trim() !== '';
+        const hasExistingUser = existingUserSelect.value !== '';
+
+        if (!hasNewUsername && !hasExistingUser) {
+            e.preventDefault();
+            alert('新規ユーザー名を入力するか、既存のユーザーを選択してください。');
+            return;
+        }
+
+        if (!form.weight_records.value.trim()) {
+            e.preventDefault();
+            alert('測定データを入力してください。');
+            return;
+        }
+    });
+
+    newUsernameInput.addEventListener('input', updateValidation);
+    existingUserSelect.addEventListener('change', updateValidation);
+    
+    updateValidation();
+});
+</script>
+{% endblock %}

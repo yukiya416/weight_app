@@ -1,0 +1,102 @@
+<header class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <!-- ブランドロゴ -->
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-dumbbell me-2"></i>リコア管理システム
+        </a>
+        
+        <!-- モバイル用のトグルボタン -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- ナビゲーションコンテンツ -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+            {% if current_user.is_authenticated %}
+                <!-- 左側のメニュー -->
+                <ul class="navbar-nav me-auto">
+                    <!-- 体重管理 -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'weight.dashboard' %}active{% endif %}" 
+                           href="{{ url_for('weight.dashboard') }}">
+                            <i class="fas fa-weight me-1"></i>体重管理
+                        </a>
+                    </li>
+                    
+                    <!-- 管理者用メニュー -->
+                    {% if current_user.is_admin %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('weight.admin_') %}active{% endif %}" 
+                               href="#" 
+                               data-bs-toggle="dropdown">
+                                <i class="fas fa-users-cog me-1"></i>ユーザー管理
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('weight.admin_records') }}">
+                                        <i class="fas fa-list me-2"></i>ユーザー一覧
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('weight.import_data') }}">
+                                        <i class="fas fa-file-import me-2"></i>データインポート
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                </ul>
+
+                <!-- 右側のユーザーメニュー -->
+                <div class="d-flex align-items-center">
+                    <!-- 管理者用ユーザー切替 -->
+                    {% if current_user.is_admin %}
+                        <div class="dropdown me-3">
+                            <button class="btn btn-outline-warning btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-switch me-1"></i>
+                                {% if user.id != current_user.id %}
+                                    表示中: {{ user.username }}
+                                {% else %}
+                                    ユーザー切替
+                                {% endif %}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <form action="{{ url_for('shared.admin_switch') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    {% for u in users %}
+                                        <li>
+                                            <button type="submit" name="user_id" value="{{ u.id }}" 
+                                                    class="dropdown-item {% if user.id == u.id %}active{% endif %}">
+                                                <i class="fas fa-user me-2"></i>{{ u.username }}
+                                                {% if u.is_admin %}
+                                                    <span class="badge bg-warning text-dark ms-1">管理者</span>
+                                                {% endif %}
+                                                {% if u.id == current_user.id %}
+                                                    <span class="badge bg-info text-dark ms-1">現在</span>
+                                                {% endif %}
+                                            </button>
+                                        </li>
+                                    {% endfor %}
+                                </form>
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- ユーザー情報 -->
+                    <div class="me-3 text-light">
+                        <i class="fas fa-user me-1"></i>
+                        {{ current_user.username }}
+                        {% if current_user.is_admin %}
+                            <span class="badge bg-warning text-dark ms-1">管理者</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- ログアウト -->
+                    <a href="{{ url_for('shared.logout') }}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>ログアウト
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</header>

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}体重管理{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('weight.static', filename='css/weight.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+    <!-- 期間選択 -->
+    <div class="period-control">
+        <div class="period-selector">
+            <button class="period-btn active" data-period="total">累計</button>
+            <button class="period-btn" data-period="6months">6ヶ月</button>
+            <button class="period-btn" data-period="3months">3ヶ月</button>
+            <button class="period-btn" data-period="1month">1ヶ月</button>
+        </div>
+    </div>
+
+    <!-- グラフエリア -->
+    <div class="chart-area">
+        <div class="chart-tabs">
+            <button class="tab-btn active" data-chart="weight">体重</button>
+            <button class="tab-btn" data-chart="fat">体脂肪率</button>
+            <button class="tab-btn" data-chart="fat_mass">体脂肪量</button>
+            <button class="tab-btn" data-chart="lean_mass">除脂肪体重</button>
+            <button class="tab-btn" data-chart="bmi">BMI</button>
+        </div>
+        <div class="chart-content">
+            <canvas id="mainChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 記録ボタン -->
+    <button class="action-btn" id="showRecordModal">
+        <i class="fas fa-plus"></i>
+    </button>
+</div>
+
+<!-- 記録モーダル -->
+<div class="modal" id="recordModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2>体重を記録</h2>
+            <button class="close-btn" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="{{ url_for('weight.record') }}">
+                <div class="form-group">
+                    <label>日付</label>
+                    <div class="date-inputs">
+                        <select name="year" class="date-select">
+                            {% for year in range(current_year-1, current_year+2) %}
+                                <option value="{{ year }}" {% if year == today.year %}selected{% endif %}>
+                                    {{ year }}年
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <select name="month" class="date-select">
+                            {% for month in range(1, 13) %}
+                                <option value="{{ month }}" {% if month == today.month %}selected{% endif %}>
+                                    {{ month }}月
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <select name="day" class="date-select">
+                            {% for day in range(1, 32) %}
+                                <option value="{{ day }}" {% if day == today.day %}selected{% endif %}>
+                                    {{ day }}日
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>体重 (kg)</label>
+                    <input type="number" name="weight" step="0.1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>体脂肪率 (%)</label>
+                    <input type="number" name="body_fat" step="0.1">
+                </div>
+
+                <button type="submit" class="submit-btn">記録する</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('weight.static', filename='js/weight.js') }}"></script>
+{% endblock %}
