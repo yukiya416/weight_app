@@ -5,6 +5,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, PasswordField, TextAreaField, SelectField
 from wtforms.validators import Optional
 from datetime import datetime, timedelta
+from datetime import date
 import re
 
 from . import weight
@@ -12,6 +13,7 @@ from .models import WeightRecord
 from shared.extensions import db, get_viewing_user_id
 from shared.models.user import User
 from shared.utils import admin_required
+
 
 class ImportDataForm(FlaskForm):
     """データインポートフォーム"""
@@ -64,7 +66,7 @@ def get_data():
 @admin_required
 def admin_records():
     """体重記録の管理画面"""
-    today = datetime.now()
+    today = date.today()  # datetimeからdateに変更
     return render_template('admin/user_list.html',
                          users=User.query.all(),
                          user=current_user,

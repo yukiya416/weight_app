@@ -1,6 +1,7 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from shared.extensions import db
+from datetime import date, datetime
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -9,6 +10,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     height = db.Column(db.Float)  # 身長をcm単位で保存
     age = db.Column(db.Integer)
+    birth_date = db.Column(db.Date, nullable=True)  # 生年月日フィールドを追加
     
     # 新しく追加するフィールド
     gender = db.Column(db.String(1))  # 'M' for male, 'F' for female
@@ -28,6 +30,16 @@ class User(UserMixin, db.Model):
         """性別の表示用文字列を返す"""
         return '男性' if self.gender == 'M' else '女性' if self.gender == 'F' else '未設定'
 
+    @property
+    def age(self):
+        """生年月日から年齢を計算して返す"""
+        if self.birth_date:
+            today = date.today()
+            return today.year - self.birth_date.year - (
+                (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+            )
+        return None
+
     def get_recommended_targets(self):
         """身長、年齢、性別に基づいた推奨目標値を計算"""
         if not self.height:
@@ -37,13 +49,14 @@ class User(UserMixin, db.Model):
         ideal_weight = 22 * (self.height / 100) ** 2
 
         # 性別と年齢に基づく推奨体脂肪率
+        current_age = self.age
         if self.gender == 'M':
-            if self.age and self.age < 40:
+            if current_age and current_age < 40:
                 recommended_fat = 15
             else:
                 recommended_fat = 17
         elif self.gender == 'F':
-            if self.age and self.age < 40:
+            if current_age and current_age < 40:
                 recommended_fat = 25
             else:
                 recommended_fat = 27
