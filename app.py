@@ -89,7 +89,8 @@ def init_database(app):
             admin = User(
                 username='admin',
                 is_admin=True,
-                height=170.0  # デフォルトの身長を設定
+                height=170.0,  # デフォルトの身長を設定
+                birth_date=None  # birth_dateをNoneとして設定
             )
             admin.set_password('admin')
             db.session.add(admin)

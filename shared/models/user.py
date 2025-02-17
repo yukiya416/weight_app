@@ -1,34 +1,43 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from shared.extensions import db
-from datetime import date, datetime
+from datetime import date
+from sqlalchemy import Date
 
 class User(UserMixin, db.Model):
+    # 基本情報
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
-    height = db.Column(db.Float)  # 身長をcm単位で保存
-    age = db.Column(db.Integer)
-    birth_date = db.Column(db.Date, nullable=True)  # 生年月日フィールドを追加
     
-    # 新しく追加するフィールド
-    gender = db.Column(db.String(1))  # 'M' for male, 'F' for female
-    target_weight = db.Column(db.Float)      # 目標体重 (kg)
-    target_bmi = db.Column(db.Float)         # 目標BMI
-    target_body_fat = db.Column(db.Float)    # 目標体脂肪率 (%)
-    target_lean_mass = db.Column(db.Float)   # 目標除脂肪体重 (kg)
+    # プロフィール情報
+    height = db.Column(db.Float, nullable=True)  # 身長 (cm)
+    birth_date = db.Column(db.Date, nullable=True)  # 生年月日
+    gender = db.Column(db.String(1), nullable=True)  # 'M' for male, 'F' for female
+    
+    # 目標値
+    target_weight = db.Column(db.Float, nullable=True)      # 目標体重 (kg)
+    target_bmi = db.Column(db.Float, nullable=True)         # 目標BMI
+    target_body_fat = db.Column(db.Float, nullable=True)    # 目標体脂肪率 (%)
+    target_lean_mass = db.Column(db.Float, nullable=True)   # 目標除脂肪体重 (kg)
     
     def set_password(self, password):
+        """パスワードをハッシュ化して設定"""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
+        """パスワードの確認"""
         return check_password_hash(self.password_hash, password)
 
     @property
     def display_gender(self):
         """性別の表示用文字列を返す"""
-        return '男性' if self.gender == 'M' else '女性' if self.gender == 'F' else '未設定'
+        if self.gender == 'M':
+            return '男性'
+        elif self.gender == 'F':
+            return '女性'
+        return '未設定'
 
     @property
     def age(self):
@@ -72,3 +81,7 @@ class User(UserMixin, db.Model):
             'body_fat': recommended_fat,
             'lean_mass': round(recommended_lean, 1)
         }
+
+    def __repr__(self):
+        """デバッグ用の文字列表現"""
+        return f'<User {self.username}>'
