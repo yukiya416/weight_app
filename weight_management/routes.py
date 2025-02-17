@@ -1,9 +1,9 @@
 # weight_management/routes.py
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from flask_wtf import FlaskForm, CSRFProtect
+from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, PasswordField, TextAreaField, SelectField
-from wtforms.validators import DataRequired, Optional
+from wtforms.validators import Optional
 from datetime import datetime, timedelta
 import re
 
@@ -13,17 +13,14 @@ from shared.extensions import db, get_viewing_user_id
 from shared.models.user import User
 from shared.utils import admin_required
 
-csrf = CSRFProtect()
-
 class ImportDataForm(FlaskForm):
     """データインポートフォーム"""
     username = StringField('ユーザー名', validators=[Optional()])
     height = FloatField('身長', validators=[Optional()])
     gender = SelectField('性別', choices=[('male', '男性'), ('female', '女性')], validators=[Optional()])
     password = PasswordField('パスワード', validators=[Optional()])
-    weight_records = TextAreaField('体重記録', validators=[DataRequired()])
+    weight_records = TextAreaField('体重記録', validators=[Optional()])
 
-# 一般ユーザー向けルート
 @weight.route('/')
 @login_required
 def dashboard():
@@ -62,7 +59,6 @@ def get_data():
         'bmi': [r.calculate_bmi() for r in records]
     })
 
-# 管理者向けルート
 @weight.route('/admin/records')
 @login_required
 @admin_required
@@ -74,6 +70,96 @@ def admin_records():
                          user=current_user,
                          today=today,
                          current_year=today.year)
+
+@weight.route('/admin/import', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def import_data():
+    """データインポートと更新"""
+    form = ImportDataForm()
+    users = User.query.order_by(User.username).all()
+    today = datetime.now()
+    
+    if form.validate_on_submit():
+        try:
+            existing_user_id = request.form.get('existing_user_id')
+            if existing_user_id:
+                # 既存ユーザーの更新
+                user = User.query.get_or_404(existing_user_id)
+                if request.form.get('height'): 
+                    user.height = float(request.form.get('height'))
+                if request.form.get('gender'): 
+                    user.gender = request.form.get('gender')
+                if request.form.get('birth_date'): 
+                    user.birth_date = datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date()
+                if form.password.data: 
+                    user.set_password(form.password.data)
+                db.session.commit()
+                flash('ユーザー情報を更新しました', 'success')
+            else:
+                # 新規ユーザーの作成
+                if not form.username.data:
+                    flash('新規ユーザーの作成には、ユーザー名が必要です', 'danger')
+                    return render_template('admin/import_data.html', 
+                                        form=form, users=users, user=current_user,
+                                        today=today, current_year=today.year)
+                
+                if User.query.filter_by(username=form.username.data).first():
+                    flash('このユーザー名は既に使用されています', 'danger')
+                    return render_template('admin/import_data.html', 
+                                        form=form, users=users, user=current_user,
+                                        today=today, current_year=today.year)
+
+                user = User(
+                    username=form.username.data,
+                    height=float(request.form.get('height')),
+                    gender=request.form.get('gender'),
+                    birth_date=datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date()
+                )
+                user.set_password(form.password.data)
+                db.session.add(user)
+                db.session.commit()
+                flash('新規ユーザーを作成しました', 'success')
+
+            # 測定データの処理（入力がある場合のみ）
+            if form.weight_records.data and form.weight_records.data.strip():
+                success_count = 0
+                error_lines = []
+                
+                for line in form.weight_records.data.strip().split('\n'):
+                    try:
+                        match = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d+\.?\d*)\s+(\d+\.?\d*)', line.strip())
+                        if match:
+                            year, month, day, weight, body_fat = match.groups()
+                            record = WeightRecord(
+                                user_id=user.id,
+                                weight=float(weight),
+                                body_fat=float(body_fat),
+                                created_at=datetime(int(year), int(month), int(day))
+                            )
+                            db.session.add(record)
+                            success_count += 1
+                        else:
+                            error_lines.append(line)
+                    except Exception as e:
+                        error_lines.append(line)
+
+                if error_lines:
+                    flash('以下の行でエラーが発生しました：\n' + '\n'.join(error_lines), 'warning')
+                
+                if success_count > 0:
+                    db.session.commit()
+                    flash(f'{success_count}件のデータを登録しました', 'success')
+
+            return redirect(url_for('weight.admin_records'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'エラーが発生しました: {str(e)}', 'danger')
+    
+    return render_template('admin/import_data.html', 
+                         form=form, users=users, user=current_user,
+                         today=today, current_year=today.year)
 
 @weight.route('/admin/users/<int:user_id>/records/data')
 @login_required
@@ -131,80 +217,6 @@ def delete_record(record_id):
         db.session.rollback()
         flash('削除に失敗しました', 'danger')
     return redirect(url_for('weight.admin_records'))
-
-@weight.route('/admin/import', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def import_data():
-    """データインポート"""
-    form = ImportDataForm()
-    users = User.query.order_by(User.username).all()
-    today = datetime.now()
-    
-    if form.validate_on_submit():
-        try:
-            existing_user_id = request.form.get('existing_user_id')
-            if existing_user_id:
-                user = User.query.get_or_404(existing_user_id)
-                if request.form.get('height'): user.height = float(request.form.get('height'))
-                if request.form.get('gender'): user.gender = request.form.get('gender')
-                if request.form.get('birth_date'): 
-                    user.birth_date = datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date()
-                if form.password.data: user.set_password(form.password.data)
-            else:
-                if User.query.filter_by(username=form.username.data).first():
-                    flash('このユーザー名は既に使用されています', 'danger')
-                    return render_template('admin/import_data.html', 
-                                        form=form, users=users, user=current_user,
-                                        today=today, current_year=today.year)
-
-                user = User(
-                    username=form.username.data,
-                    height=float(request.form.get('height')),
-                    gender=request.form.get('gender'),
-                    birth_date=datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date()
-                )
-                user.set_password(form.password.data)
-                db.session.add(user)
-                db.session.flush()
-
-            success_count = 0
-            error_lines = []
-            for line in form.weight_records.data.strip().split('\n'):
-                try:
-                    match = re.match(r'(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d+\.?\d*)\s+(\d+\.?\d*)', line.strip())
-                    if match:
-                        year, month, day, weight, body_fat = match.groups()
-                        db.session.add(WeightRecord(
-                            user_id=user.id,
-                            weight=float(weight),
-                            body_fat=float(body_fat),
-                            created_at=datetime(int(year), int(month), int(day))
-                        ))
-                        success_count += 1
-                    else:
-                        error_lines.append(line)
-                except Exception as e:
-                    error_lines.append(line)
-
-            if error_lines:
-                flash('以下の行でエラーが発生しました：\n' + '\n'.join(error_lines), 'warning')
-            
-            if success_count > 0:
-                db.session.commit()
-                flash(f'{success_count}件のデータを登録しました', 'success')
-                return redirect(url_for('weight.admin_records'))
-            else:
-                db.session.rollback()
-                flash('データの登録に失敗しました', 'danger')
-
-        except Exception as e:
-            db.session.rollback()
-            flash(f'エラーが発生しました: {str(e)}', 'danger')
-    
-    return render_template('admin/import_data.html', 
-                         form=form, users=users, user=current_user,
-                         today=today, current_year=today.year)
 
 @weight.route('/record', methods=['POST'])
 @login_required
